@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Reading Chart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .calendar-day.has-reading {
+            position: relative;
+        }
+        .calendar-day.has-reading::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #34D399; /* Emerald 400 */
+        }
+        .rating input[type="radio"] {
+            display: none;
+        }
+        .rating label {
+            cursor: pointer;
+            color: #d1d5db; /* Gray 300 */
+            transition: color 0.2s;
+        }
+        .rating input[type="radio"]:checked ~ label,
+        .rating:hover input[type="radio"] ~ label,
+        .rating label:hover,
+        .rating label:hover ~ label {
+            color: #f59e0b; /* Amber 500 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <div class="flex flex-col md:flex-row items-center justify-center space-y-2 md:space-y-0 md:space-x-4 mb-4">
+                <h1 id="log-name-display" class="text-4xl font-bold text-gray-900">My Reading Tracker</h1>
+                <button id="edit-log-name-btn" class="p-2 rounded-full hover:bg-gray-100 transition" title="Edit Log Name">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                </button>
+            </div>
+            <p class="text-lg text-gray-600 mt-2">Log your books, track your time, and watch your reading habits grow.</p>
+        </header>
+
+        <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-8 p-4 bg-white rounded-2xl shadow-lg">
+            <div class="flex items-center gap-2">
+                <label for="log-selector" class="font-medium text-gray-700">Select Log:</label>
+                <select id="log-selector" class="p-2 border rounded-md"></select>
+            </div>
+            <button id="create-log-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition shadow-md">Create New Log</button>
+        </div>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-8">
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <div id="calendar-header" class="flex items-center justify-between mb-4">
+                        <button id="prev-month" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <h2 id="month-year" class="text-xl font-semibold"></h2>
+                        <button id="next-month" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                    </div>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center">
+                        </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">Add a New Book</h2>
+                    <form id="add-book-form" class="space-y-4">
+                        <div>
+                            <label for="book-title" class="block text-sm font-medium text-gray-700">Book Title</label>
+                            <input type="text" id="book-title" placeholder="e.g., The Great Gatsby" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required>
+                        </div>
+                        <div>
+                            <label for="book-author" class="block text-sm font-medium text-gray-700">Author</label>
+                            <input type="text" id="book-author" placeholder="e.g., F. Scott Fitzgerald" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition shadow-md">Add Book</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="lg:col-span-1 space-y-8">
+                 <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">My Bookshelf</h2>
+                    <div id="book-list" class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                        <p id="no-books-msg" class="text-gray-500">You haven't added any books yet.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-2xl font-bold mb-4">Reading Stats</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="font-semibold mb-2">Books Read Over Time</h3>
+                            <canvas id="books-read-chart"></canvas>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">Reading Time Over Time (Minutes)</h3>
+                            <canvas id="reading-time-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="day-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-95 opacity-0">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-date" class="text-xl font-bold">Log Reading</h3>
+                <button id="close-modal" class="p-2 rounded-full hover:bg-gray-100">&times;</button>
+            </div>
+            <div id="modal-content" class="space-y-4">
+                <p id="no-active-books" class="text-gray-500 hidden">Add a book to your bookshelf to start logging time.</p>
+                <div id="log-entry-form" class="space-y-4">
+                    </div>
+                <div id="daily-summary" class="mt-6 pt-4 border-t">
+                     <h4 class="font-semibold">Today's Total: <span id="daily-total-time">0</span> minutes</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // State management
+            let readingTrackerData = JSON.parse(localStorage.getItem('readingTrackerData')) || {};
+            let currentUserId = localStorage.getItem('currentReadingTrackerUser') || null;
+            let currentDate = new Date();
+
+            // DOM Elements
+            const logNameDisplay = document.getElementById('log-name-display');
+            const editLogNameBtn = document.getElementById('edit-log-name-btn');
+            const logSelector = document.getElementById('log-selector');
+            const createLogBtn = document.getElementById('create-log-btn');
+
+            const monthYearEl = document.getElementById('month-year');
+            const calendarGrid = document.getElementById('calendar-grid');
+            const prevMonthBtn = document.getElementById('prev-month');
+            const nextMonthBtn = document.getElementById('next-month');
+            const addBookForm = document.getElementById('add-book-form');
+            const bookTitleInput = document.getElementById('book-title');
+            const bookAuthorInput = document.getElementById('book-author');
+            const bookListEl = document.getElementById('book-list');
+            const noBooksMsg = document.getElementById('no-books-msg');
+            const dayModal = document.getElementById('day-modal');
+            const closeModalBtn = document.getElementById('close-modal');
+            const modalDateEl = document.getElementById('modal-date');
+            const logEntryForm = document.getElementById('log-entry-form');
+            const noActiveBooksMsg = document.getElementById('no-active-books');
+            const dailyTotalTimeEl = document.getElementById('daily-total-time');
+            
+            let booksReadChart, readingTimeChart;
+
+            // --- Utility Functions ---
+            const saveState = () => {
+                localStorage.setItem('readingTrackerData', JSON.stringify(readingTrackerData));
+                localStorage.setItem('currentReadingTrackerUser', currentUserId);
+            };
+
+            const generateDateKey = (date) => date.toISOString().split('T')[0];
+
+            // --- User/Log Management ---
+            const loadUser = (userId) => {
+                currentUserId = userId;
+                saveState();
+                renderUI();
+            };
+
+            const renderUserSelector = () => {
+                logSelector.innerHTML = '';
+                const userIds = Object.keys(readingTrackerData);
+                if (userIds.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No logs created';
+                    logSelector.appendChild(option);
+                    createLogBtn.click(); // Automatically create the first log
+                    return;
+                }
+                
+                userIds.forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = readingTrackerData[id].name;
+                    logSelector.appendChild(option);
+                });
+                logSelector.value = currentUserId || userIds[0];
+                currentUserId = logSelector.value;
+            };
+
+            const createNewLog = () => {
+                const logName = prompt("Enter a name for the new reading log:");
+                if (logName) {
+                    const newId = Date.now().toString();
+                    readingTrackerData[newId] = {
+                        name: logName,
+                        books: [],
+                        readingLog: {}
+                    };
+                    loadUser(newId);
+                    renderUserSelector();
+                }
+            };
+
+            const editLogName = () => {
+                const logName = prompt("Enter a new name for the reading log:", readingTrackerData[currentUserId].name);
+                if (logName) {
+                    readingTrackerData[currentUserId].name = logName;
+                    saveState();
+                    renderUserSelector();
+                    renderUI();
+                }
+            };
+
+            const renderUI = () => {
+                if (!currentUserId || !readingTrackerData[currentUserId]) {
+                    logNameDisplay.textContent = "No Log Selected";
+                    return;
+                }
+                logNameDisplay.textContent = readingTrackerData[currentUserId].name;
+                renderBookList();
+                renderCalendar();
+                updateCharts();
+            };
+
+            logSelector.addEventListener('change', (e) => loadUser(e.target.value));
+            createLogBtn.addEventListener('click', createNewLog);
+            editLogNameBtn.addEventListener('click', editLogName);
+            
+
+            // --- Book Management ---
+            const renderBookList = () => {
+                if (!currentUserId) return;
+                const { books, readingLog } = readingTrackerData[currentUserId];
+                bookListEl.innerHTML = '';
+                if (books.length === 0) {
+                    noBooksMsg.style.display = 'block';
+                    return;
+                }
+                noBooksMsg.style.display = 'none';
+
+                books.forEach(book => {
+                    const bookEl = document.createElement('div');
+                    bookEl.className = 'border p-4 rounded-lg';
+                    bookEl.dataset.id = book.id;
+                    
+                    const totalMinutes = Object.values(readingLog).reduce((acc, dayLog) => {
+                        return acc + (dayLog[book.id]?.minutes || 0);
+                    }, 0);
+
+                    bookEl.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold">${book.title}</h4>
+                                <p class="text-sm text-gray-500">${book.author || 'N/A'}</p>
+                                <p class="text-sm text-gray-500 mt-1">Total read: ${totalMinutes} min</p>
+                            </div>
+                            <button class="delete-book-btn text-gray-400 hover:text-red-500 transition" data-id="${book.id}">&times;</button>
+                        </div>
+                        <div class="mt-4">
+                            <div class="rating flex flex-row-reverse justify-end items-center">
+                                ${[5,4,3,2,1].map(star => `
+                                <input type="radio" id="star${star}-${book.id}" name="rating-${book.id}" value="${star}" ${book.rating == star ? 'checked' : ''}>
+                                <label for="star${star}-${book.id}" class="text-2xl">&#9733;</label>
+                                `).join('')}
+                            </div>
+                            <textarea class="book-comment w-full mt-2 p-2 border rounded-md text-sm" placeholder="Add a comment...">${book.comment || ''}</textarea>
+                        </div>
+                    `;
+                    bookListEl.appendChild(bookEl);
+                });
+            };
+
+            const addBook = (e) => {
+                e.preventDefault();
+                if (!currentUserId) {
+                    alert('Please create or select a reading log first.');
+                    return;
+                }
+                const title = bookTitleInput.value.trim();
+                const author = bookAuthorInput.value.trim();
+                if (!title) return;
+
+                const newBook = {
+                    id: Date.now(),
+                    title,
+                    author,
+                    rating: 0,
+                    comment: '',
+                };
+                readingTrackerData[currentUserId].books.push(newBook);
+                bookTitleInput.value = '';
+                bookAuthorInput.value = '';
+                saveState();
+                renderUI();
+            };
+
+            bookListEl.addEventListener('click', (e) => {
+                const target = e.target;
+                const bookId = parseInt(target.closest('[data-id]').dataset.id);
+                const { books, readingLog } = readingTrackerData[currentUserId];
+
+                if (target.classList.contains('delete-book-btn')) {
+                    readingTrackerData[currentUserId].books = books.filter(b => b.id !== bookId);
+                    // Also remove log entries for this book
+                    Object.keys(readingLog).forEach(dateKey => {
+                        if (readingLog[dateKey][bookId]) {
+                            delete readingLog[dateKey][bookId];
+                            if(Object.keys(readingLog[dateKey]).length === 0){
+                                delete readingLog[dateKey];
+                            }
+                        }
+                    });
+
+                    saveState();
+                    renderUI();
+                }
+
+                if (target.type === 'radio') {
+                    const book = books.find(b => b.id === bookId);
+                    book.rating = parseInt(target.value);
+                    saveState();
+                }
+            });
+            
+            bookListEl.addEventListener('change', (e) => {
+                 if (e.target.classList.contains('book-comment')) {
+                    const bookId = parseInt(e.target.closest('[data-id]').dataset.id);
+                    const book = readingTrackerData[currentUserId].books.find(b => b.id === bookId);
+                    book.comment = e.target.value;
+                    saveState();
+                }
+            });
+
+
+            // --- Calendar Management ---
+            const renderCalendar = () => {
+                calendarGrid.innerHTML = '';
+                const month = currentDate.getMonth();
+                const year = currentDate.getFullYear();
+
+                monthYearEl.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+                
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                dayHeaders.forEach(day => {
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'font-semibold text-sm text-gray-600';
+                    dayEl.textContent = day;
+                    calendarGrid.appendChild(dayEl);
+                });
+
+                for (let i = 0; i < firstDayOfMonth; i++) {
+                    calendarGrid.appendChild(document.createElement('div'));
+                }
+
+                const readingLog = readingTrackerData[currentUserId]?.readingLog || {};
+                
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dayEl = document.createElement('button');
+                    const date = new Date(year, month, i);
+                    const dateKey = generateDateKey(date);
+                    
+                    dayEl.className = 'calendar-day p-2 rounded-full hover:bg-indigo-100 transition focus:outline-none focus:ring-2 focus:ring-indigo-400';
+                    dayEl.textContent = i;
+                    dayEl.dataset.date = date.toISOString();
+
+                    if (readingLog[dateKey] && Object.keys(readingLog[dateKey]).length > 0) {
+                        dayEl.classList.add('has-reading');
+                    }
+                    
+                    const today = new Date();
+                    if(date.toDateString() === today.toDateString()){
+                        dayEl.classList.add('bg-indigo-500', 'text-white', 'font-bold');
+                        dayEl.classList.remove('hover:bg-indigo-100');
+                    }
+
+                    calendarGrid.appendChild(dayEl);
+                }
+            };
+            
+            prevMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar();
+            });
+
+            nextMonthBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            });
+
+            // --- Modal Management ---
+            calendarGrid.addEventListener('click', (e) => {
+                if (e.target.dataset.date) {
+                    openDayModal(new Date(e.target.dataset.date));
+                }
+            });
+
+            const openDayModal = (date) => {
+                if (!currentUserId) return;
+                const { books, readingLog } = readingTrackerData[currentUserId];
+                const dateKey = generateDateKey(date);
+                modalDateEl.textContent = date.toLocaleDateString('default', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                modalDateEl.dataset.dateKey = dateKey;
+                logEntryForm.innerHTML = '';
+
+                if (books.length === 0) {
+                    noActiveBooksMsg.style.display = 'block';
+                    logEntryForm.style.display = 'none';
+                } else {
+                    noActiveBooksMsg.style.display = 'none';
+                    logEntryForm.style.display = 'block';
+                    books.forEach(book => {
+                        const log = readingLog[dateKey]?.[book.id] || { minutes: 0 };
+                        const entryEl = document.createElement('div');
+                        entryEl.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg';
+                        entryEl.innerHTML = `
+                            <span class="truncate pr-2">${book.title}</span>
+                            <div class="flex items-center">
+                                <input type="number" min="0" value="${log.minutes}" data-book-id="${book.id}" class="w-20 text-right border rounded-md p-1 time-input">
+                                <span class="ml-2 text-sm text-gray-600">min</span>
+                            </div>
+                        `;
+                        logEntryForm.appendChild(entryEl);
+                    });
+                }
+                
+                updateDailyTotal();
+                dayModal.classList.remove('hidden');
+                setTimeout(() => dayModal.querySelector('div').classList.remove('scale-95', 'opacity-0'), 10);
+            };
+
+            const closeDayModal = () => {
+                dayModal.querySelector('div').classList.add('scale-95', 'opacity-0');
+                setTimeout(() => dayModal.classList.add('hidden'), 200);
+            };
+
+            const updateDailyTotal = () => {
+                let total = 0;
+                logEntryForm.querySelectorAll('.time-input').forEach(input => {
+                    total += parseInt(input.value) || 0;
+                });
+                dailyTotalTimeEl.textContent = total;
+            };
+
+            logEntryForm.addEventListener('input', (e) => {
+                if (e.target.classList.contains('time-input')) {
+                    const dateKey = modalDateEl.dataset.dateKey;
+                    const bookId = e.target.dataset.bookId;
+                    const minutes = parseInt(e.target.value) || 0;
+                    
+                    if (!readingTrackerData[currentUserId].readingLog[dateKey]) {
+                        readingTrackerData[currentUserId].readingLog[dateKey] = {};
+                    }
+                    if (!readingTrackerData[currentUserId].readingLog[dateKey][bookId]) {
+                        readingTrackerData[currentUserId].readingLog[dateKey][bookId] = {};
+                    }
+                    readingTrackerData[currentUserId].readingLog[dateKey][bookId].minutes = minutes;
+                    
+                    if(minutes === 0) {
+                       delete readingTrackerData[currentUserId].readingLog[dateKey][bookId];
+                       if (Object.keys(readingTrackerData[currentUserId].readingLog[dateKey]).length === 0) {
+                            delete readingTrackerData[currentUserId].readingLog[dateKey];
+                       }
+                    }
+
+                    updateDailyTotal();
+                    saveState();
+                    renderUI();
+                }
+            });
+
+            closeModalBtn.addEventListener('click', closeDayModal);
+            dayModal.addEventListener('click', (e) => {
+                if (e.target === dayModal) {
+                    closeDayModal();
+                }
+            });
+
+            // --- Chart Management ---
+            const initCharts = () => {
+                const booksReadCtx = document.getElementById('books-read-chart').getContext('2d');
+                booksReadChart = new Chart(booksReadCtx, {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Books Added', data: [], backgroundColor: 'rgba(79, 70, 229, 0.2)', borderColor: 'rgba(79, 70, 229, 1)', borderWidth: 2, tension: 0.3, fill: true }] },
+                    options: { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                });
+
+                const readingTimeCtx = document.getElementById('reading-time-chart').getContext('2d');
+                readingTimeChart = new Chart(readingTimeCtx, {
+                    type: 'bar',
+                    data: { labels: [], datasets: [{ label: 'Minutes Read', data: [], backgroundColor: 'rgba(52, 211, 153, 0.6)', borderColor: 'rgba(5, 150, 105, 1)', borderWidth: 1 }] },
+                    options: { scales: { y: { beginAtZero: true } } }
+                });
+            };
+            
+            const updateCharts = () => {
+                if (!currentUserId) {
+                    booksReadChart.data.labels = [];
+                    booksReadChart.data.datasets[0].data = [];
+                    booksReadChart.update();
+                    readingTimeChart.data.labels = [];
+                    readingTimeChart.data.datasets[0].data = [];
+                    readingTimeChart.update();
+                    return;
+                }
+
+                const { books, readingLog } = readingTrackerData[currentUserId];
+                const sortedLogKeys = Object.keys(readingLog).sort();
+
+                // Books Read Chart Data
+                const bookCreationDates = books.map(b => new Date(b.id).toISOString().split('T')[0]).sort();
+                const bookCountData = {};
+                let cumulativeBooks = 0;
+                bookCreationDates.forEach(date => {
+                    cumulativeBooks++;
+                    bookCountData[date] = cumulativeBooks;
+                });
+                
+                const allDatesForBookChart = [...new Set([...Object.keys(bookCountData), ...sortedLogKeys])].sort();
+                let lastBookCount = 0;
+                const bookChartLabels = [];
+                const bookChartData = [];
+                
+                allDatesForBookChart.forEach(date => {
+                    const d = new Date(date);
+                    bookChartLabels.push(d.toLocaleDateString('default', {month:'short', day:'numeric'}));
+                    lastBookCount = bookCountData[date] || lastBookCount;
+                    bookChartData.push(lastBookCount);
+                });
+                
+                booksReadChart.data.labels = bookChartLabels;
+                booksReadChart.data.datasets[0].data = bookChartData;
+                booksReadChart.update();
+
+
+                // Reading Time Chart Data
+                const timeData = {};
+                sortedLogKeys.forEach(date => {
+                    const totalMinutes = Object.values(readingLog[date]).reduce((sum, entry) => sum + (entry.minutes || 0), 0);
+                    if (totalMinutes > 0) {
+                        timeData[date] = totalMinutes;
+                    }
+                });
+                const timeChartLabels = Object.keys(timeData).map(date => new Date(date).toLocaleDateString('default', {month:'short', day:'numeric'}));
+                readingTimeChart.data.labels = timeChartLabels;
+                readingTimeChart.data.datasets[0].data = Object.values(timeData);
+                readingTimeChart.update();
+            };
+
+            // --- Initial Load ---
+            addBookForm.addEventListener('submit', addBook);
+            initCharts();
+            renderUserSelector();
+            renderUI();
+        });
+    </script>
+</body>
+</html>
